@@ -3,11 +3,9 @@ package controllers
 import (
 	b64 "encoding/base64"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
 	"go-login-auth/database"
 	"go-login-auth/utils"
-	"os"
 	"strconv"
 )
 
@@ -63,23 +61,17 @@ func Refresh(c *fiber.Ctx) error {
 	if err := c.BodyParser(&mapToken); err != nil {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(err.Error())
 	}
-	refreshToken, _ := b64.StdEncoding.DecodeString(mapToken["refresh_token"])
-	token, err := jwt.Parse(string(refreshToken), func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(os.Getenv("REFRESH_SECRET")), nil
-	})
+	token, err := utils.VerifyRefreshToken(mapToken["refresh_token"])
 	// Check signature
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON("Refresh token expired, revoked or incorrect")
 	}
 	// Is token valid?
-	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
+	if !utils.IsTokenValid(token) {
 		return c.Status(fiber.StatusUnauthorized).JSON(err)
 	}
 	// Since token is valid, get the uuid
-	claims, ok := token.Claims.(jwt.MapClaims) // the token claims should conform to MapClaims
+	claims, ok := utils.GetTokenMapClaims(token) // the token claims should conform to MapClaims
 	if ok && token.Valid {
 		refreshUuid, ok := claims["refresh_uuid"].(string) // convert the interface to string
 		if !ok {

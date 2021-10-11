@@ -4,8 +4,8 @@ import (
 	b64 "encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt"
 	"github.com/twinj/uuid"
 	"go-login-auth/database"
 	"os"
@@ -166,4 +166,27 @@ func DeleteTokens(authD *AccessDetails) error {
 		return errors.New("something went wrong")
 	}
 	return nil
+}
+
+func VerifyRefreshToken(token string) (*jwt.Token, error) {
+	refreshToken, _ := b64.StdEncoding.DecodeString(token)
+	rToken, err := jwt.Parse(string(refreshToken), func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(os.Getenv("REFRESH_SECRET")), nil
+	})
+	return rToken, err
+}
+
+func IsTokenValid(token *jwt.Token) bool {
+	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
+		return false
+	}
+	return true
+}
+
+func GetTokenMapClaims(token *jwt.Token) (jwt.MapClaims, bool) {
+	claims, ok := token.Claims.(jwt.MapClaims)
+	return claims, ok
 }
