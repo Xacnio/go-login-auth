@@ -1,0 +1,36 @@
+version: "3.7" # optional since v1.27.0
+services:
+  go-login-auth:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: go-login-auth
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - goapp
+  postgres:
+    hostname: postgres
+    image: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./config/sql/datatest.sql:/docker-entrypoint-initdb.d/create_tables.sql
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    networks:
+      - goapp
+  redis:
+    image: redis:latest
+    networks:
+      - goapp
+    restart: unless-stopped
+
+networks:
+  goapp:
+    driver: bridge
